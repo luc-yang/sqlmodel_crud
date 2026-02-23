@@ -1,0 +1,64 @@
+{#
+SQLModel CRUD 类生成模板
+
+该模板用于生成 SQLModel 模型的 CRUD 操作类。
+强制继承 CRUDBase/AsyncCRUDBase，符合 MVP 架构。
+#}
+{# 模板变量说明:
+   - model: ModelMeta 对象，包含模型元数据
+   - config: GeneratorConfig 对象，包含生成器配置
+   - model_name: 模型类名
+   - crud_class_name: CRUD 类名
+   - table_name: 数据库表名
+   - primary_key: 主键字段名
+   - primary_key_type: 主键字段类型
+#}
+{{ file_header }}
+
+from typing import Optional, Any, Dict, List
+{% if config.use_async %}
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel_crud import AsyncCRUDBase
+{% else %}
+from sqlmodel import Session
+from sqlmodel_crud import CRUDBase
+{% endif %}
+
+from ..models.{{ model_name | snake_case }} import {{ model_name }}
+
+{% if config.use_async %}
+class {{ crud_class_name }}(AsyncCRUDBase[{{ model_name }}, {{ model_name }}, {{ model_name }}]):
+{% else %}
+class {{ crud_class_name }}(CRUDBase[{{ model_name }}, {{ model_name }}, {{ model_name }}]):
+{% endif %}
+    """
+    {{ model_name }} 模型的 CRUD 操作类。
+
+    继承自 {% if config.use_async %}AsyncCRUDBase{% else %}CRUDBase{% endif %}，
+    自动拥有完整的数据库操作能力，包括：
+    - create, create_multi (批量创建)
+    - get, get_or_raise, get_multi (查询，支持分页、过滤、排序)
+    - update, delete (更新、删除，支持软删除)
+    - count, exists (统计、存在性检查)
+    - 软删除自动过滤
+    - 统一异常处理
+
+    用法示例:
+        >>> crud = {{ crud_class_name }}()
+        {% if config.use_async %}
+        >>> obj = await crud.create(session, {"name": "test"})
+        {% else %}
+        >>> obj = crud.create(session, {"name": "test"})
+        {% endif %}
+    """
+
+    def __init__(self):
+        """
+        初始化 CRUD 操作类。
+
+        按照 MVP 架构设计，传入模型类型而非数据库会话。
+        会话应通过方法参数传入，支持会话复用和事务管理。
+        """
+        super().__init__({{ model_name }})
+
+    {# 可以在此处添加模型特定的自定义方法 #}

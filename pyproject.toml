@@ -1,0 +1,88 @@
+[project]
+name = "sqlmodel-curd"
+version = "1.0.0"
+description = "基于SQLModel的可复用CRUD模块"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.11"
+authors = [
+    {name = "LucYang 杨艺斌", email = "lucyang1995@foxmail.com"},
+]
+keywords = ["sqlmodel", "crud", "database", "sqlalchemy", "orm", "code-generator"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Database",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
+]
+dependencies = [
+    "sqlmodel>=0.0.35",
+    "sqlalchemy>=2.0.0",
+    "pydantic>=2.0.0",
+    "aiosqlite>=0.22.1",
+    "jinja2>=3.1.6",
+    "typer>=0.12.0",
+    "rich>=13.0.0",
+]
+
+[project.scripts]
+sqlmodel-crud = "sqlmodel_crud.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/yourusername/sqlmodel-curd"
+Documentation = "https://github.com/yourusername/sqlmodel-curd#readme"
+Repository = "https://github.com/yourusername/sqlmodel-curd"
+Issues = "https://github.com/yourusername/sqlmodel-curd/issues"
+Changelog = "https://github.com/yourusername/sqlmodel-curd/blob/main/CHANGELOG.md"
+
+[[tool.uv.index]]
+url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+default = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["sqlmodel_crud*"]
+
+[tool.setuptools.package-data]
+sqlmodel_crud = ["templates/*.j2"]
+
+[tool.uv]
+package = true
+
+[dependency-groups]
+dev = [
+    "black>=26.1.0",
+    "pytest>=9.0.2",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=7.0.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+asyncio_mode = "auto"
+
+[tool.black]
+line-length = 88
+target-version = ['py311']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''

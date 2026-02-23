@@ -1,0 +1,9 @@
+include MANIFEST.in
+include README.md
+include LICENSE
+include CHANGELOG.md
+recursive-include src/sqlmodel_crud/templates *.j2
+recursive-include src/sqlmodel_crud *.py
+recursive-include docs *.md
+recursive-include examples *.py *.md
+recursive-include tests *.py
