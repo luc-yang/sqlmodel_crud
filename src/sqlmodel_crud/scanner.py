@@ -516,7 +516,14 @@ class ModelScanner:
             需要排除的目录名称列表
         """
         # 默认排除的目录
-        default_excludes = {"generated", "__pycache__", ".git", ".venv", "venv", "node_modules"}
+        default_excludes = {
+            "generated",
+            "__pycache__",
+            ".git",
+            ".venv",
+            "venv",
+            "node_modules",
+        }
 
         # 如果配置中有 output_dir，也将其加入排除列表
         if self.config and hasattr(self.config, "output_dir"):
@@ -753,7 +760,12 @@ class ModelScanner:
 
             # 获取外键信息
             if hasattr(field_info, "foreign_key"):
-                field_meta.foreign_key = field_info.foreign_key
+                fk_value = field_info.foreign_key
+                # 只保存有效的外键值（非 None 且非 PydanticUndefined）
+                if fk_value is not None and not str(fk_value).startswith(
+                    "PydanticUndefined"
+                ):
+                    field_meta.foreign_key = fk_value
 
             # 获取主键信息
             if hasattr(field_info, "primary_key"):
