@@ -3,13 +3,13 @@
 
 模型: Resource
 类型: CRUD
-生成时间: 2026-02-23 21:15:42
+生成时间: 2026-02-24 21:41:42
 
 警告: 请勿手动修改此文件，你的更改可能会在下次生成时被覆盖。
 """
 
 
-from typing import Optional, Any, Dict, List
+from typing import Optional, Any, Dict, List, Union
 from sqlmodel import Session
 from sqlmodel_crud import CRUDBase
 
@@ -28,6 +28,10 @@ class ResourceCRUD(CRUDBase[Resource, Resource, Resource]):
     - 软删除自动过滤
     - 统一异常处理
 
+    索引字段:
+    - name: str
+    注意: 本表包含部分索引（Partial Index），使用索引字段查询时请注意 WHERE 条件。
+
     用法示例:
         >>> crud = ResourceCRUD()
         >>> obj = crud.create(session, {"name": "test"})
@@ -41,4 +45,65 @@ class ResourceCRUD(CRUDBase[Resource, Resource, Resource]):
         会话应通过方法参数传入，支持会话复用和事务管理。
         """
         super().__init__(Resource)
+
+
+    # ==================== 基于普通索引的查询方法 ====================
+
+def get_by_name(
+        self,
+        session: Session,
+        name: str,
+        *,
+        skip: int = 0,
+        limit: int = 100
+    ) -> List[Resource]:
+        """
+        根据 name 获取多条记录（利用索引）。
+
+        Args:
+            session: 数据库会话
+            name: 物资名称
+            skip: 跳过的记录数
+            limit: 返回的最大记录数
+
+        Returns:
+            记录对象列表
+
+        示例:
+            >>> objs = crud.get_by_name(session, "value")
+        """
+        from sqlmodel import select
+
+        statement = (
+            select(self.model)
+            .where(self.model.name == name)
+            .offset(skip)
+            .limit(limit)
+        )
+        return list(session.execute(statement).scalars().all())
+
+def count_by_name(
+        self,
+        session: Session,
+        name: str
+    ) -> int:
+        """
+        根据 name 统计记录数（利用索引）。
+
+        Args:
+            session: 数据库会话
+            name: 物资名称
+
+        Returns:
+            符合条件的记录总数
+
+        示例:
+            >>> count = crud.count_by_name(session, "value")
+        """
+        from sqlmodel import select, func
+
+        statement = select(func.count()).select_from(self.model).where(
+            self.model.name == name
+        )
+        return session.execute(statement).scalar() or 0
 

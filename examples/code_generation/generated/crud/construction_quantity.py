@@ -3,13 +3,13 @@
 
 模型: ConstructionQuantity
 类型: CRUD
-生成时间: 2026-02-23 21:15:42
+生成时间: 2026-02-24 21:41:42
 
 警告: 请勿手动修改此文件，你的更改可能会在下次生成时被覆盖。
 """
 
 
-from typing import Optional, Any, Dict, List
+from typing import Optional, Any, Dict, List, Union
 from sqlmodel import Session
 from sqlmodel_crud import CRUDBase
 
@@ -28,6 +28,8 @@ class ConstructionQuantityCRUD(CRUDBase[ConstructionQuantity, ConstructionQuanti
     - 软删除自动过滤
     - 统一异常处理
 
+    注意: 本表包含部分索引（Partial Index），使用索引字段查询时请注意 WHERE 条件。
+
     用法示例:
         >>> crud = ConstructionQuantityCRUD()
         >>> obj = crud.create(session, {"name": "test"})
@@ -41,4 +43,6 @@ class ConstructionQuantityCRUD(CRUDBase[ConstructionQuantity, ConstructionQuanti
         会话应通过方法参数传入，支持会话复用和事务管理。
         """
         super().__init__(ConstructionQuantity)
+
+
 

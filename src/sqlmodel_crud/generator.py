@@ -354,6 +354,10 @@ class CodeGenerator:
                 "primary_key": primary_key_field.name,
                 "primary_key_type": self._format_type(primary_key_field.python_type),
                 "file_header": self._generate_file_header(model.name, "CRUD"),
+                # 索引相关信息
+                "indexed_fields": self._get_indexed_fields(model),
+                "unique_fields": self._get_unique_fields(model),
+                "has_partial_indexes": self._has_partial_indexes(model),
             }
 
             # 渲染模板
@@ -570,6 +574,45 @@ class CodeGenerator:
                 return field
 
         return None
+
+    def _get_indexed_fields(self, model: ModelMeta) -> List[FieldMeta]:
+        """
+        获取模型的所有索引字段。
+
+        Args:
+            model: 模型元数据
+
+        Returns:
+            索引字段列表
+        """
+        return [f for f in model.fields if f.index]
+
+    def _get_unique_fields(self, model: ModelMeta) -> List[FieldMeta]:
+        """
+        获取模型的所有唯一字段。
+
+        Args:
+            model: 模型元数据
+
+        Returns:
+            唯一字段列表
+        """
+        return [f for f in model.fields if f.unique]
+
+    def _has_partial_indexes(self, model: ModelMeta) -> bool:
+        """
+        检查模型是否有部分索引。
+
+        Args:
+            model: 模型元数据
+
+        Returns:
+            如果有部分索引返回 True
+        """
+        for idx in model.indexes:
+            if "where" in idx:
+                return True
+        return False
 
     def _get_type_import(self, python_type: Any) -> str:
         """

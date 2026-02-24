@@ -12,10 +12,13 @@ SQLModel CRUD 类生成模板
    - table_name: 数据库表名
    - primary_key: 主键字段名
    - primary_key_type: 主键字段类型
+   - indexed_fields: 索引字段列表
+   - unique_fields: 唯一字段列表
+   - has_partial_indexes: 是否有部分索引
 #}
 {{ file_header }}
 
-from typing import Optional, Any, Dict, List
+from typing import Optional, Any, Dict, List, Union
 {% if config.use_async %}
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel_crud import AsyncCRUDBase
@@ -42,6 +45,17 @@ class {{ crud_class_name }}(CRUDBase[{{ model_name }}, {{ model_name }}, {{ mode
     - count, exists (统计、存在性检查)
     - 软删除自动过滤
     - 统一异常处理
+{% if indexed_fields %}
+
+    索引字段:
+{% for field in indexed_fields %}
+    - {{ field.name }}: {{ field.python_type.__name__ if field.python_type.__name__ else str(field.python_type) }}{% if field.unique %} (唯一){% endif %}
+{% endfor %}
+{% endif %}
+{% if has_partial_indexes %}
+
+    注意: 本表包含部分索引（Partial Index），使用索引字段查询时请注意 WHERE 条件。
+{% endif %}
 
     用法示例:
         >>> crud = {{ crud_class_name }}()
@@ -60,5 +74,117 @@ class {{ crud_class_name }}(CRUDBase[{{ model_name }}, {{ model_name }}, {{ mode
         会话应通过方法参数传入，支持会话复用和事务管理。
         """
         super().__init__({{ model_name }})
+
+{% if unique_fields %}
+    # ==================== 基于唯一索引的查询方法 ====================
+{% for field in unique_fields %}
+{% if not field.primary_key %}
+
+    {% if config.use_async %}async {% endif %}def get_by_{{ field.name }}(
+        self,
+        session: {% if config.use_async %}AsyncSession{% else %}Session{% endif %},
+        {{ field.name }}: {{ field.python_type.__name__ if field.python_type.__name__ else 'Any' }}
+    ) -> Optional[{{ model_name }}]:
+        """
+        根据 {{ field.name }} 获取单条记录（利用唯一索引）。
+
+        Args:
+            session: 数据库会话
+            {{ field.name }}: {{ field.description or field.name }}
+
+        Returns:
+            查询到的记录对象，不存在时返回 None
+
+        示例:
+            >>> {% if config.use_async %}obj = await {% else %}obj = {% endif %}crud.get_by_{{ field.name }}(session, "value")
+        """
+        from sqlmodel import select
+
+        statement = select(self.model).where(self.model.{{ field.name }} == {{ field.name }})
+        {% if config.use_async %}
+        result = await session.execute(statement)
+        return result.scalar_one_or_none()
+        {% else %}
+        return session.execute(statement).scalar_one_or_none()
+        {% endif %}
+{% endif %}
+{% endfor %}
+{% endif %}
+
+{% if indexed_fields %}
+    # ==================== 基于普通索引的查询方法 ====================
+{% for field in indexed_fields %}
+{% if not field.primary_key and not field.unique %}
+
+    {% if config.use_async %}async {% endif %}def get_by_{{ field.name }}(
+        self,
+        session: {% if config.use_async %}AsyncSession{% else %}Session{% endif %},
+        {{ field.name }}: {{ field.python_type.__name__ if field.python_type.__name__ else 'Any' }},
+        *,
+        skip: int = 0,
+        limit: int = 100
+    ) -> List[{{ model_name }}]:
+        """
+        根据 {{ field.name }} 获取多条记录（利用索引）。
+
+        Args:
+            session: 数据库会话
+            {{ field.name }}: {{ field.description or field.name }}
+            skip: 跳过的记录数
+            limit: 返回的最大记录数
+
+        Returns:
+            记录对象列表
+
+        示例:
+            >>> {% if config.use_async %}objs = await {% else %}objs = {% endif %}crud.get_by_{{ field.name }}(session, "value")
+        """
+        from sqlmodel import select
+
+        statement = (
+            select(self.model)
+            .where(self.model.{{ field.name }} == {{ field.name }})
+            .offset(skip)
+            .limit(limit)
+        )
+        {% if config.use_async %}
+        result = await session.execute(statement)
+        return list(result.scalars().all())
+        {% else %}
+        return list(session.execute(statement).scalars().all())
+        {% endif %}
+
+    {% if config.use_async %}async {% endif %}def count_by_{{ field.name }}(
+        self,
+        session: {% if config.use_async %}AsyncSession{% else %}Session{% endif %},
+        {{ field.name }}: {{ field.python_type.__name__ if field.python_type.__name__ else 'Any' }}
+    ) -> int:
+        """
+        根据 {{ field.name }} 统计记录数（利用索引）。
+
+        Args:
+            session: 数据库会话
+            {{ field.name }}: {{ field.description or field.name }}
+
+        Returns:
+            符合条件的记录总数
+
+        示例:
+            >>> {% if config.use_async %}count = await {% else %}count = {% endif %}crud.count_by_{{ field.name }}(session, "value")
+        """
+        from sqlmodel import select, func
+
+        statement = select(func.count()).select_from(self.model).where(
+            self.model.{{ field.name }} == {{ field.name }}
+        )
+        {% if config.use_async %}
+        result = await session.execute(statement)
+        return result.scalar() or 0
+        {% else %}
+        return session.execute(statement).scalar() or 0
+        {% endif %}
+{% endif %}
+{% endfor %}
+{% endif %}
 
     {# 可以在此处添加模型特定的自定义方法 #}

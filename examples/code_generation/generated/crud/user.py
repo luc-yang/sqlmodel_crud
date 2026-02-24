@@ -3,13 +3,13 @@
 
 模型: User
 类型: CRUD
-生成时间: 2026-02-23 21:15:42
+生成时间: 2026-02-24 21:41:42
 
 警告: 请勿手动修改此文件，你的更改可能会在下次生成时被覆盖。
 """
 
 
-from typing import Optional, Any, Dict, List
+from typing import Optional, Any, Dict, List, Union
 from sqlmodel import Session
 from sqlmodel_crud import CRUDBase
 
@@ -28,6 +28,8 @@ class UserCRUD(CRUDBase[User, User, User]):
     - 软删除自动过滤
     - 统一异常处理
 
+    索引字段:
+    - name: str    - email: str (唯一)
     用法示例:
         >>> crud = UserCRUD()
         >>> obj = crud.create(session, {"name": "test"})
@@ -41,4 +43,89 @@ class UserCRUD(CRUDBase[User, User, User]):
         会话应通过方法参数传入，支持会话复用和事务管理。
         """
         super().__init__(User)
+
+    # ==================== 基于唯一索引的查询方法 ====================
+
+def get_by_email(
+        self,
+        session: Session,
+        email: str
+    ) -> Optional[User]:
+        """
+        根据 email 获取单条记录（利用唯一索引）。
+
+        Args:
+            session: 数据库会话
+            email: email
+
+        Returns:
+            查询到的记录对象，不存在时返回 None
+
+        示例:
+            >>> obj = crud.get_by_email(session, "value")
+        """
+        from sqlmodel import select
+
+        statement = select(self.model).where(self.model.email == email)
+        return session.execute(statement).scalar_one_or_none()
+
+    # ==================== 基于普通索引的查询方法 ====================
+
+def get_by_name(
+        self,
+        session: Session,
+        name: str,
+        *,
+        skip: int = 0,
+        limit: int = 100
+    ) -> List[User]:
+        """
+        根据 name 获取多条记录（利用索引）。
+
+        Args:
+            session: 数据库会话
+            name: name
+            skip: 跳过的记录数
+            limit: 返回的最大记录数
+
+        Returns:
+            记录对象列表
+
+        示例:
+            >>> objs = crud.get_by_name(session, "value")
+        """
+        from sqlmodel import select
+
+        statement = (
+            select(self.model)
+            .where(self.model.name == name)
+            .offset(skip)
+            .limit(limit)
+        )
+        return list(session.execute(statement).scalars().all())
+
+def count_by_name(
+        self,
+        session: Session,
+        name: str
+    ) -> int:
+        """
+        根据 name 统计记录数（利用索引）。
+
+        Args:
+            session: 数据库会话
+            name: name
+
+        Returns:
+            符合条件的记录总数
+
+        示例:
+            >>> count = crud.count_by_name(session, "value")
+        """
+        from sqlmodel import select, func
+
+        statement = select(func.count()).select_from(self.model).where(
+            self.model.name == name
+        )
+        return session.execute(statement).scalar() or 0
 

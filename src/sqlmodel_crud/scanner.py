@@ -341,16 +341,25 @@ class ModelScanner:
                 }
 
                 # 获取部分索引（Partial Index）的 WHERE 条件
-                # 支持 SQLite 和 PostgreSQL 的部分索引
+                # 支持多种数据库的部分索引
                 where_clause = None
                 if hasattr(idx, "dialect_kwargs"):
                     kwargs = dict(idx.dialect_kwargs)
-                    # SQLite 部分索引
-                    if "sqlite_where" in kwargs:
-                        where_clause = str(kwargs["sqlite_where"])
-                    # PostgreSQL 部分索引
-                    elif "postgresql_where" in kwargs:
-                        where_clause = str(kwargs["postgresql_where"])
+
+                    # 数据库方言到 WHERE 条件参数名的映射
+                    dialect_where_params = {
+                        "sqlite": "sqlite_where",
+                        "postgresql": "postgresql_where",
+                        "mysql": "mysql_where",
+                        "mssql": "mssql_where",
+                        "oracle": "oracle_where",
+                    }
+
+                    for dialect, param_name in dialect_where_params.items():
+                        if param_name in kwargs:
+                            where_clause = str(kwargs[param_name])
+                            index_info["dialect"] = dialect
+                            break
 
                 if where_clause:
                     index_info["where"] = where_clause
@@ -646,9 +655,9 @@ class ModelScanner:
                 print(f"[提示] 可能的原因:")
                 print(f"  1. 该模型已在包导入时被加载，又被逐个文件扫描重复加载")
                 print(f"  2. 多个模型文件定义了同名的表")
-                print(f"[建议] 如果 {path / '__init__.py'} 存在问题，可以尝试:")
-                print(f"  - 修复 {path / '__init__.py'} 中的导入错误")
-                print(f"  - 或临时删除/重命名 {path / '__init__.py'} 以跳过包导入")
+                print(f"[建议] 如果 {file_path.parent / '__init__.py'} 存在问题，可以尝试:")
+                print(f"  - 修复 {file_path.parent / '__init__.py'} 中的导入错误")
+                print(f"  - 或临时删除/重命名 {file_path.parent / '__init__.py'} 以跳过包导入")
 
             raise ValidationError(f"扫描文件失败: {e}", context={"file": str(file_path)}) from e
         finally:
