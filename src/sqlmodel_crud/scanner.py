@@ -100,9 +100,7 @@ class FieldMeta:
         Returns:
             如果字段不可为空且没有默认值，返回 True
         """
-        return (
-            not self.nullable and self.default is None and self.default_factory is None
-        )
+        return not self.nullable and self.default is None and self.default_factory is None
 
     def is_auto_increment(self) -> bool:
         """
@@ -341,6 +339,22 @@ class ModelScanner:
                     "columns": [col.name for col in idx.columns],
                     "unique": idx.unique,
                 }
+
+                # 获取部分索引（Partial Index）的 WHERE 条件
+                # 支持 SQLite 和 PostgreSQL 的部分索引
+                where_clause = None
+                if hasattr(idx, "dialect_kwargs"):
+                    kwargs = dict(idx.dialect_kwargs)
+                    # SQLite 部分索引
+                    if "sqlite_where" in kwargs:
+                        where_clause = str(kwargs["sqlite_where"])
+                    # PostgreSQL 部分索引
+                    elif "postgresql_where" in kwargs:
+                        where_clause = str(kwargs["postgresql_where"])
+
+                if where_clause:
+                    index_info["where"] = where_clause
+
                 model_meta.indexes.append(index_info)
 
             # 获取唯一约束
@@ -413,9 +427,7 @@ class ModelScanner:
                                         f"  1. {init_file} 中引用了不存在的模块（如 repositories）"
                                     )
                                     print(f"  2. {init_file} 中的相对导入路径不正确")
-                                    print(
-                                        f"  3. 父目录缺少 __init__.py 导致包结构不完整"
-                                    )
+                                    print(f"  3. 父目录缺少 __init__.py 导致包结构不完整")
                                     print(
                                         f"[建议] 如果不需要包级别的导入，可以临时删除或重命名 {init_file}"
                                     )
@@ -582,9 +594,7 @@ class ModelScanner:
         if package_root and package_parts:
             # 计算从包根到文件的相对路径
             rel_parts = file_path.relative_to(package_root).parts
-            module_name = ".".join(
-                package_parts[:-1] + list(rel_parts[:-1]) + [file_path.stem]
-            )
+            module_name = ".".join(package_parts[:-1] + list(rel_parts[:-1]) + [file_path.stem])
             package_name = ".".join(package_parts[:-1] + list(rel_parts[:-1]))
         else:
             module_name = file_path.stem
@@ -621,11 +631,7 @@ class ModelScanner:
                 if name.startswith("_"):
                     continue
                 try:
-                    if (
-                        isinstance(obj, type)
-                        and issubclass(obj, SQLModel)
-                        and obj is not SQLModel
-                    ):
+                    if isinstance(obj, type) and issubclass(obj, SQLModel) and obj is not SQLModel:
                         model_meta = self.scan_model(obj)
                         models.append(model_meta)
                 except (TypeError, AttributeError):
@@ -644,9 +650,7 @@ class ModelScanner:
                 print(f"  - 修复 {path / '__init__.py'} 中的导入错误")
                 print(f"  - 或临时删除/重命名 {path / '__init__.py'} 以跳过包导入")
 
-            raise ValidationError(
-                f"扫描文件失败: {e}", context={"file": str(file_path)}
-            ) from e
+            raise ValidationError(f"扫描文件失败: {e}", context={"file": str(file_path)}) from e
         finally:
             # 清理 sys.path
             if added_to_path and package_root and str(package_root) in sys.path:
@@ -684,15 +688,11 @@ class ModelScanner:
                     models.append(model_meta)
                 except Exception as e:
                     # 扫描失败时抛出异常
-                    raise ValidationError(
-                        f"扫描模型失败: {e}", context={"model": name}
-                    ) from e
+                    raise ValidationError(f"扫描模型失败: {e}", context={"model": name}) from e
 
         return models
 
-    def _extract_field_info(
-        self, model_class: Type[SQLModel], field_name: str
-    ) -> FieldMeta:
+    def _extract_field_info(self, model_class: Type[SQLModel], field_name: str) -> FieldMeta:
         """
         从模型类中提取字段信息。
 
@@ -707,21 +707,13 @@ class ModelScanner:
 
         # 获取字段的 SQLModel 字段信息
         field_info = None
-        if (
-            hasattr(model_class, "model_fields")
-            and field_name in model_class.model_fields
-        ):
+        if hasattr(model_class, "model_fields") and field_name in model_class.model_fields:
             field_info = model_class.model_fields[field_name]
-        elif (
-            hasattr(model_class, "__fields__") and field_name in model_class.__fields__
-        ):
+        elif hasattr(model_class, "__fields__") and field_name in model_class.__fields__:
             field_info = model_class.__fields__[field_name]
 
         # 获取 Python 类型注解
-        if (
-            hasattr(model_class, "__annotations__")
-            and field_name in model_class.__annotations__
-        ):
+        if hasattr(model_class, "__annotations__") and field_name in model_class.__annotations__:
             field_meta.python_type = model_class.__annotations__[field_name]
             field_meta.field_type = self._determine_field_type(field_meta.python_type)
 
@@ -734,10 +726,7 @@ class ModelScanner:
                     field_meta.default = default
 
             # 获取默认值工厂
-            if (
-                hasattr(field_info, "default_factory")
-                and field_info.default_factory is not None
-            ):
+            if hasattr(field_info, "default_factory") and field_info.default_factory is not None:
                 field_meta.default_factory = field_info.default_factory
 
             # 获取字段描述
@@ -745,10 +734,7 @@ class ModelScanner:
                 field_meta.description = field_info.description
 
             # 获取验证约束
-            if (
-                hasattr(field_info, "json_schema_extra")
-                and field_info.json_schema_extra
-            ):
+            if hasattr(field_info, "json_schema_extra") and field_info.json_schema_extra:
                 extra = field_info.json_schema_extra
                 if isinstance(extra, dict):
                     field_meta.ge = extra.get("ge")
@@ -762,9 +748,7 @@ class ModelScanner:
             if hasattr(field_info, "foreign_key"):
                 fk_value = field_info.foreign_key
                 # 只保存有效的外键值（非 None 且非 PydanticUndefined）
-                if fk_value is not None and not str(fk_value).startswith(
-                    "PydanticUndefined"
-                ):
+                if fk_value is not None and not str(fk_value).startswith("PydanticUndefined"):
                     field_meta.foreign_key = fk_value
 
             # 获取主键信息
@@ -924,9 +908,7 @@ class ModelScanner:
 
         return FieldType.UNKNOWN
 
-    def get_cached_model(
-        self, name: str, module: Optional[str] = None
-    ) -> Optional[ModelMeta]:
+    def get_cached_model(self, name: str, module: Optional[str] = None) -> Optional[ModelMeta]:
         """
         从缓存中获取已扫描的模型。
 
