@@ -18,7 +18,7 @@
 from .config import DatabaseConfig, default_config
 
 # 数据库初始化
-from .database import DatabaseInitializer, init_database, DatabaseManager, db
+from .database import DatabaseInitializer, init_database, DatabaseManager
 
 # 数据模型和 CRUD
 {% for model in models %}
@@ -36,7 +36,6 @@ __all__ = [
     "DatabaseInitializer",
     "init_database",
     "DatabaseManager",
-    "db",
 {% for model in models %}
     # {{ model.name }} 模型
     "{{ model.name }}",

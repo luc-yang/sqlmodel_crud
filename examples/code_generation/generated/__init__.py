@@ -10,7 +10,7 @@
 
 该文件由 SQLModel CRUD 生成器自动生成。
 
-生成时间: 2026-02-24 21:41:42
+生成时间: 2026-02-27 13:26:43
 警告: 请勿手动修改此文件，你的更改可能会在下次生成时被覆盖。
 """
 
@@ -18,7 +18,7 @@
 from .config import DatabaseConfig, default_config
 
 # 数据库初始化
-from .database import DatabaseInitializer, init_database, DatabaseManager, db
+from .database import DatabaseInitializer, init_database, DatabaseManager
 
 # 数据模型和 CRUD
 # ConstructionQuantity 相关
@@ -52,7 +52,6 @@ __all__ = [
     "DatabaseInitializer",
     "init_database",
     "DatabaseManager",
-    "db",
     # ConstructionQuantity 模型
     "ConstructionQuantity",
     "ConstructionQuantityCRUD",

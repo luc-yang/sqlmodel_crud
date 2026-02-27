@@ -107,9 +107,9 @@ class UserCRUD(CRUDBase[User, User, User]):
 
 ```
 examples/code_generation/generated/
-├── __init__.py          # 统一导出所有接口（db, User, UserCRUD）
+├── __init__.py          # 统一导出所有接口（DatabaseManager, User, UserCRUD）
 ├── config.py            # 数据库配置
-├── database.py          # 数据库初始化（包含 db 单例）
+├── database.py          # 数据库初始化（DatabaseManager 单例类）
 ├── crud/                # CRUD 类目录
 │   └── user.py          # UserCRUD 类
 └── models/              # 模型目录（从源路径复制）
@@ -126,7 +126,14 @@ examples/code_generation/generated/
 import sys
 sys.path.insert(0, 'path/to/generated/parent')
 
-from generated import db, UserCRUD, User
+from generated import DatabaseManager, DatabaseConfig, UserCRUD, User
+
+# 创建数据库管理器实例（单例模式）
+db = DatabaseManager()
+
+# 可选：自定义数据库配置
+# db_config = DatabaseConfig(db_name="myapp.db", db_dir="AppData")
+# db.set_config(db_config)
 
 # 初始化数据库
 db.init_database()
@@ -169,18 +176,25 @@ from PyQt6.QtWidgets import QApplication, QMainWindow
 
 # 添加生成的代码路径
 sys.path.insert(0, 'path/to/generated/parent')
-from generated import db, UserCRUD, User
+from generated import DatabaseManager, DatabaseConfig, UserCRUD, User
 
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        # 创建数据库管理器实例
+        self.db = DatabaseManager()
+        
+        # 可选：自定义数据库配置
+        # db_config = DatabaseConfig(db_name="myapp.db", db_dir="AppData")
+        # self.db.set_config(db_config)
+        
         # 初始化数据库
-        db.init_database()
+        self.db.init_database()
         self.user_crud = UserCRUD()
 
     def add_user(self, name, email):
-        with db.get_session() as session:
+        with self.db.get_session() as session:
             user = self.user_crud.create(session, {
                 "name": name,
                 "email": email
@@ -188,7 +202,7 @@ class MainWindow(QMainWindow):
             return user.id
 
     def get_all_users(self):
-        with db.get_session() as session:
+        with self.db.get_session() as session:
             return self.user_crud.get_multi(session)
 
 
@@ -208,11 +222,18 @@ if __name__ == "__main__":
 import sys
 sys.path.insert(0, 'data')  # 假设生成的代码在 data/ 目录
 
-from generated import db, UserCRUD, User
+from generated import DatabaseManager, DatabaseConfig, UserCRUD, User
 
 
 def main():
     """主函数"""
+    # 创建数据库管理器实例（单例模式）
+    db = DatabaseManager()
+    
+    # 可选：自定义数据库配置
+    # db_config = DatabaseConfig(db_name="myapp.db", db_dir="AppData")
+    # db.set_config(db_config)
+    
     # 初始化数据库（应用启动时调用一次）
     print("📦 初始化数据库...")
     db.init_database()

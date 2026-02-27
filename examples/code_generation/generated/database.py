@@ -5,7 +5,7 @@
 提供数据库初始化功能，包括表创建、触发器创建等。
 该文件由 SQLModel CRUD 生成器自动生成。
 
-生成时间: 2026-02-24 21:41:42
+生成时间: 2026-02-27 13:26:43
 警告: 请勿手动修改此文件，你的更改可能会在下次生成时被覆盖。
 """
 
@@ -23,6 +23,7 @@ class DatabaseInitializer:
 
     Attributes:
         db_config: 数据库配置实例
+        _engine: SQLAlchemy 引擎实例（延迟创建）
 
     示例:
         >>> initializer = DatabaseInitializer()
@@ -36,27 +37,31 @@ class DatabaseInitializer:
             db_config: 数据库配置，默认使用 default_config
         """
         self.db_config = db_config or default_config
+        self._engine = None  # 延迟创建引擎
 
     def get_engine(self):
-        """获取数据库引擎
+        """获取数据库引擎（延迟创建）
+
+        首次访问时创建引擎，确保配置已经设置。
 
         Returns:
             SQLAlchemy Engine 实例
         """
-        engine = create_engine(
-            self.db_config.database_url,
-            echo=False,
-            connect_args={"check_same_thread": False},
-            pool_size=5,
-            max_overflow=10,
-        )
-        # 启用外键约束
-        @event.listens_for(engine, "connect")
-        def enable_foreign_keys(dbapi_conn, connection_record):
-            cursor = dbapi_conn.cursor()
-            cursor.execute("PRAGMA foreign_keys = ON;")
-            cursor.close()
-        return engine
+        if self._engine is None:
+            self._engine = create_engine(
+                self.db_config.database_url,
+                echo=False,
+                connect_args={"check_same_thread": False},
+                pool_size=5,
+                max_overflow=10,
+            )
+            # 启用外键约束
+            @event.listens_for(self._engine, "connect")
+            def enable_foreign_keys(dbapi_conn, connection_record):
+                cursor = dbapi_conn.cursor()
+                cursor.execute("PRAGMA foreign_keys = ON;")
+                cursor.close()
+        return self._engine
 
     def create_tables(self, engine=None) -> None:
         """创建所有数据库表
@@ -112,7 +117,7 @@ class DatabaseInitializer:
         # 确保目录存在
         self.db_config.ensure_directory()
 
-        # 创建引擎
+        # 创建引擎（如果未提供）
         if engine is None:
             engine = self.get_engine()
 
@@ -168,9 +173,11 @@ class DatabaseManager:
     提供统一的数据库会话管理，支持作为上下文管理器使用。
     推荐在应用中使用单例模式管理数据库连接。
 
+    支持延迟引擎创建和配置更新，解决导入顺序导致的多数据库文件问题。
+
     Attributes:
         db_config: 数据库配置实例
-        engine: SQLAlchemy 引擎实例
+        engine: SQLAlchemy 引擎实例（延迟创建）
 
     示例:
         >>> # 方式1：使用默认配置
@@ -185,6 +192,10 @@ class DatabaseManager:
         >>> with db.get_session() as session:
         ...     user_crud = UserCRUD()
         ...     user = user_crud.create(session, UserCreate(name="张三"))
+        >>>
+        >>> # 方式3：应用启动时更新配置
+        >>> db = DatabaseManager()
+        >>> db.set_config(DatabaseConfig(db_name="myapp.db"))
     """
 
     _instance: Optional["DatabaseManager"] = None
@@ -209,19 +220,41 @@ class DatabaseManager:
         """初始化数据库管理器
 
         Args:
-            db_config: 数据库配置，默认使用 default_config
+            db_config: 数据库配置，首次传入会保存，后续传入会更新
         """
         # 避免重复初始化
         if self._initialized:
+            # 如果传入了新配置，更新配置并重置引擎
+            if db_config is not None:
+                self.db_config = db_config
+                self._engine = None  # 重置引擎，下次访问时重新创建
             return
 
         self.db_config = db_config or default_config
-        self._engine = None
+        self._engine = None  # 延迟创建引擎
         self._initialized = True
+
+    def set_config(self, db_config: DatabaseConfig) -> None:
+        """更新数据库配置
+
+        在应用启动时调用，确保使用正确的配置。
+        配置更新后，下次访问引擎时会使用新配置创建引擎。
+
+        Args:
+            db_config: 新的数据库配置
+
+        示例:
+            >>> db = DatabaseManager()
+            >>> db.set_config(DatabaseConfig(db_name="myapp.db"))
+        """
+        self.db_config = db_config
+        self._engine = None  # 重置引擎，下次访问时重新创建
 
     @property
     def engine(self):
-        """获取数据库引擎（懒加载）
+        """获取数据库引擎（延迟创建）
+
+        首次访问时创建引擎，确保配置已经设置。
 
         Returns:
             SQLAlchemy Engine 实例
@@ -280,13 +313,8 @@ class DatabaseManager:
         cls._instance = None
 
 
-# 创建默认的数据库管理器实例
-db = DatabaseManager()
-
-
 __all__ = [
     "DatabaseInitializer",
     "init_database",
     "DatabaseManager",
-    "db",
 ]

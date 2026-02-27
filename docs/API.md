@@ -544,9 +544,9 @@ uv run python test_generate.py
 
 ```
 data/
-├── __init__.py          # 统一导出所有接口（db, User, UserCRUD）
+├── __init__.py          # 统一导出所有接口（DatabaseManager, User, UserCRUD）
 ├── config.py            # 数据库配置
-├── database.py          # 数据库初始化（包含 db 单例）
+├── database.py          # 数据库初始化（DatabaseManager 单例类）
 ├── crud/                # CRUD 类目录
 │   └── user.py          # UserCRUD 类
 └── models/              # 模型目录（从源路径复制）
@@ -558,7 +558,14 @@ data/
 创建 `test_curd.py` 测试生成的代码：
 
 ```python
-from data import db, UserCRUD, User
+from data import UserCRUD, User, DatabaseManager, DatabaseConfig
+
+# 创建数据库管理器实例
+db = DatabaseManager()
+
+# 可选：自定义数据库配置
+# db_config = DatabaseConfig(db_name="myapp.db", db_dir="AppData")
+# db.set_config(db_config)
 
 # 初始化数据库（自动创建表，应用启动时调用一次）
 db.init_database()
@@ -621,7 +628,15 @@ uv run sqlmodel-crud generate --force
 
 ```python
 # 使用生成的数据层，无需手动配置数据库
-from data import db, UserCRUD, User
+from data import UserCRUD, User, DatabaseManager, DatabaseConfig
+
+# 创建数据库管理器实例（单例模式）
+db = DatabaseManager()
+
+# 可选：在应用启动时自定义数据库配置
+# 这会覆盖默认配置，确保使用正确的数据库文件
+db_config = DatabaseConfig(db_name="myapp.db", db_dir="AppData")
+db.set_config(db_config)
 
 # 初始化数据库（自动创建表，应用启动时调用一次）
 db.init_database()
@@ -648,10 +663,11 @@ with db.get_session() as session:
 ```
 
 **优势**：
-- `db` 是单例模式，整个应用共享同一个数据库连接
-- 无需手动管理 `DatabaseManager` 实例
-- 自动使用配置中的数据库路径
+- `DatabaseManager` 是单例模式，整个应用共享同一个数据库连接
+- 支持延迟引擎创建，导入时不会自动创建数据库文件
+- 支持 `set_config` 方法在应用启动时自定义配置
 - 直接使用原始模型类，无需额外的 Schema 层（适合 PyQt 桌面应用）
+- 导入顺序无关，可以在应用启动时灵活配置数据库
 
 ### 示例 6：分页和过滤
 
