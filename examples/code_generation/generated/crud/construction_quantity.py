@@ -3,11 +3,10 @@
 
 模型: ConstructionQuantity
 类型: CRUD
-生成时间: 2026-02-27 13:26:43
+生成时间: 2026-02-27 13:46:00
 
 警告: 请勿手动修改此文件，你的更改可能会在下次生成时被覆盖。
 """
-
 
 from typing import Optional, Any, Dict, List, Union
 from sqlmodel import Session
@@ -15,7 +14,10 @@ from sqlmodel_crud import CRUDBase
 
 from ..models.construction_quantity import ConstructionQuantity
 
-class ConstructionQuantityCRUD(CRUDBase[ConstructionQuantity, ConstructionQuantity, ConstructionQuantity]):
+
+class ConstructionQuantityCRUD(
+    CRUDBase[ConstructionQuantity, ConstructionQuantity, ConstructionQuantity]
+):
     """
     ConstructionQuantity 模型的 CRUD 操作类。
 
@@ -32,7 +34,7 @@ class ConstructionQuantityCRUD(CRUDBase[ConstructionQuantity, ConstructionQuanti
 
     用法示例:
         >>> crud = ConstructionQuantityCRUD()
-        >>> obj = crud.create(session, {"name": "test"})
+                >>> obj = crud.create(session, {"name": "test"})
     """
 
     def __init__(self):
@@ -43,6 +45,3 @@ class ConstructionQuantityCRUD(CRUDBase[ConstructionQuantity, ConstructionQuanti
         会话应通过方法参数传入，支持会话复用和事务管理。
         """
         super().__init__(ConstructionQuantity)
-
-
-

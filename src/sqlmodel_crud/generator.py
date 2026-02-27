@@ -88,7 +88,7 @@ class CodeGenerator:
         env = Environment(
             loader=loader,
             trim_blocks=True,
-            lstrip_blocks=True,
+            lstrip_blocks=False,
             keep_trailing_newline=True,
         )
 

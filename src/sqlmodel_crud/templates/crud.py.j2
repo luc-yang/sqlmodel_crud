@@ -101,12 +101,12 @@ class {{ crud_class_name }}(CRUDBase[{{ model_name }}, {{ model_name }}, {{ mode
         from sqlmodel import select
 
         statement = select(self.model).where(self.model.{{ field.name }} == {{ field.name }})
-        {% if config.use_async %}
+{% if config.use_async %}
         result = await session.execute(statement)
         return result.scalar_one_or_none()
-        {% else %}
+{% else %}
         return session.execute(statement).scalar_one_or_none()
-        {% endif %}
+{% endif %}
 {% endif %}
 {% endfor %}
 {% endif %}
@@ -147,12 +147,12 @@ class {{ crud_class_name }}(CRUDBase[{{ model_name }}, {{ model_name }}, {{ mode
             .offset(skip)
             .limit(limit)
         )
-        {% if config.use_async %}
+{% if config.use_async %}
         result = await session.execute(statement)
         return list(result.scalars().all())
-        {% else %}
+{% else %}
         return list(session.execute(statement).scalars().all())
-        {% endif %}
+{% endif %}
 
     {% if config.use_async %}async {% endif %}def count_by_{{ field.name }}(
         self,
@@ -177,12 +177,12 @@ class {{ crud_class_name }}(CRUDBase[{{ model_name }}, {{ model_name }}, {{ mode
         statement = select(func.count()).select_from(self.model).where(
             self.model.{{ field.name }} == {{ field.name }}
         )
-        {% if config.use_async %}
+{% if config.use_async %}
         result = await session.execute(statement)
         return result.scalar() or 0
-        {% else %}
+{% else %}
         return session.execute(statement).scalar() or 0
-        {% endif %}
+{% endif %}
 {% endif %}
 {% endfor %}
 {% endif %}

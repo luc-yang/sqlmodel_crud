@@ -3,17 +3,17 @@
 
 模型: User
 类型: CRUD
-生成时间: 2026-02-27 13:26:43
+生成时间: 2026-02-27 13:46:00
 
 警告: 请勿手动修改此文件，你的更改可能会在下次生成时被覆盖。
 """
-
 
 from typing import Optional, Any, Dict, List, Union
 from sqlmodel import Session
 from sqlmodel_crud import CRUDBase
 
 from ..models.user import User
+
 
 class UserCRUD(CRUDBase[User, User, User]):
     """
@@ -32,7 +32,7 @@ class UserCRUD(CRUDBase[User, User, User]):
     - name: str    - email: str (唯一)
     用法示例:
         >>> crud = UserCRUD()
-        >>> obj = crud.create(session, {"name": "test"})
+                >>> obj = crud.create(session, {"name": "test"})
     """
 
     def __init__(self):
@@ -46,11 +46,7 @@ class UserCRUD(CRUDBase[User, User, User]):
 
     # ==================== 基于唯一索引的查询方法 ====================
 
-def get_by_email(
-        self,
-        session: Session,
-        email: str
-    ) -> Optional[User]:
+    def get_by_email(self, session: Session, email: str) -> Optional[User]:
         """
         根据 email 获取单条记录（利用唯一索引）。
 
@@ -71,13 +67,8 @@ def get_by_email(
 
     # ==================== 基于普通索引的查询方法 ====================
 
-def get_by_name(
-        self,
-        session: Session,
-        name: str,
-        *,
-        skip: int = 0,
-        limit: int = 100
+    def get_by_name(
+        self, session: Session, name: str, *, skip: int = 0, limit: int = 100
     ) -> List[User]:
         """
         根据 name 获取多条记录（利用索引）。
@@ -97,18 +88,11 @@ def get_by_name(
         from sqlmodel import select
 
         statement = (
-            select(self.model)
-            .where(self.model.name == name)
-            .offset(skip)
-            .limit(limit)
+            select(self.model).where(self.model.name == name).offset(skip).limit(limit)
         )
         return list(session.execute(statement).scalars().all())
 
-def count_by_name(
-        self,
-        session: Session,
-        name: str
-    ) -> int:
+    def count_by_name(self, session: Session, name: str) -> int:
         """
         根据 name 统计记录数（利用索引）。
 
@@ -124,8 +108,7 @@ def count_by_name(
         """
         from sqlmodel import select, func
 
-        statement = select(func.count()).select_from(self.model).where(
-            self.model.name == name
+        statement = (
+            select(func.count()).select_from(self.model).where(self.model.name == name)
         )
         return session.execute(statement).scalar() or 0
-
