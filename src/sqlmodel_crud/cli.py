@@ -34,7 +34,7 @@ from .generator import CodeGenerator
 from .detector import ChangeDetector
 
 # 版本信息
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 __author__ = "LucYang 杨艺斌"
 
 # 创建 Typer 应用

@@ -84,7 +84,7 @@ from .config import (
 )
 from .path_resolver import PathResolver
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 __author__ = "LucYang 杨艺斌"
 
 __all__ = [
