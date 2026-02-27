@@ -209,13 +209,17 @@ sqlmodel_curd/
 [sqlmodel-crud]
 models_path = "app/models"
 output_dir = "app/generated"
-generators = ["crud"]
+generators = ["crud", "schemas"]
 crud_suffix = "CRUD"
 exclude_models = []
 generate_data_layer = true
 data_layer_db_name = "app.db"
-data_layer_db_dir = "AppData"
 ```
+
+**注意**：
+- `models_path` 仅支持文件路径格式（如 `app/models`），不再支持模块导入路径格式（如 `app.models`）
+- 输出目录使用固定结构：`crud/`、`schemas/`、`models/`
+- 当 `models_path` 位于 `output_dir` 内时，模型复制会自动禁用
 
 ### 环境变量
 
@@ -254,5 +258,20 @@ uv run black sqlmodel_crud/ tests/
 欢迎提交 Issue 和 Pull Request！
 
 ## 更新日志
+
+## 更新日志
+
+### v1.1.0 (2026-02-27)
+
+**重大变更**：
+- 🗑️ 移除 `crud_output_dir`、`schemas_output_dir`、`data_layer_db_dir` 配置项
+- 📁 使用固定的输出目录结构（`crud/`、`schemas/`、`models/`）
+- 🛤️ `models_path` 仅支持文件路径，不再支持模块导入路径格式
+
+**改进**：
+- 🤖 路径冲突时自动禁用模型复制，避免两份模型文件问题
+- 🔧 添加 `PathResolver` 路径解析辅助类，集中处理路径逻辑
+- ⚡ 配置验证在创建时立即执行，移除延迟验证机制
+- 🎯 简化配置模块，降低用户使用复杂度
 
 详见 [CHANGELOG.md](CHANGELOG.md)

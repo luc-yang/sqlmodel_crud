@@ -971,17 +971,17 @@ class ConstructionQuantity(SQLModel, table=True):
 | 配置项 | 类型 | 默认值 | 说明 | 环境变量 |
 |--------|------|--------|------|----------|
 | **基础配置** |
-| `models_path` | `str` | `"app/models"` | 模型扫描路径 | `SQLMODEL_CRUD_MODELS_PATH` |
+| `models_path` | `str` | `"app/models"` | 模型扫描路径（仅支持文件路径） | `SQLMODEL_CRUD_MODELS_PATH` |
 | `output_dir` | `str` | `"app/generated"` | 代码输出目录 | `SQLMODEL_CRUD_OUTPUT_DIR` |
-| `generators` | `List[str]` | `["crud"]` | 生成器类型 | `SQLMODEL_CRUD_GENERATORS` |
-| `use_async` | `bool` | `False` | 是否生成异步代码 | - |
+| `generators` | `List[str]` | `["crud", "schemas"]` | 生成器类型 | `SQLMODEL_CRUD_GENERATORS` |
+| `use_async` | `bool` | `True` | 是否生成异步代码 | - |
 | **数据库连接** |
 | `enable_foreign_keys` | `bool` | `True` | 启用外键约束 | `SQLMODEL_CRUD_ENABLE_FOREIGN_KEYS` |
 | `echo_sql` | `bool` | `False` | 打印 SQL 语句 | `SQLMODEL_CRUD_ECHO_SQL` |
 | `pool_size` | `int` | `5` | 连接池大小 | `SQLMODEL_CRUD_POOL_SIZE` |
 | `max_overflow` | `int` | `10` | 最大溢出连接 | `SQLMODEL_CRUD_MAX_OVERFLOW` |
 | **代码生成控制** |
-| `generate_model_copy` | `bool` | `True` | 复制模型文件 | `SQLMODEL_CRUD_GENERATE_MODEL_COPY` |
+| `generate_model_copy` | `bool` | `True` | 复制模型文件（路径冲突时自动禁用） | `SQLMODEL_CRUD_GENERATE_MODEL_COPY` |
 | `generate_data_layer` | `bool` | `True` | 生成数据层文件 | `SQLMODEL_CRUD_GENERATE_DATA_LAYER` |
 | `data_layer_db_name` | `str` | `"app.db"` | 数据库文件名 | `SQLMODEL_CRUD_DATA_LAYER_DB_NAME` |
 | **代码风格** |
@@ -990,6 +990,10 @@ class ConstructionQuantity(SQLModel, table=True):
 | **安全备份** |
 | `backup_before_generate` | `bool` | `False` | 生成前备份 | `SQLMODEL_CRUD_BACKUP_BEFORE_GENERATE` |
 | `backup_suffix` | `str` | `".bak"` | 备份文件后缀 | `SQLMODEL_CRUD_BACKUP_SUFFIX` |
+
+**注意**：
+- `models_path` 仅支持文件路径格式（如 `app/models`），不再支持模块导入路径格式（如 `app.models`）
+- 当 `models_path` 位于 `output_dir` 内时，`generate_model_copy` 会自动设置为 `False`，避免生成两份模型文件
 
 ---
 
@@ -1021,10 +1025,17 @@ class ConstructionQuantity(SQLModel, table=True):
 | 0.4.1 | 2026-02-23 | 🐛 修复外键解析错误 |
 | | | 🔧 添加 `NoReferencedTableError` 异常处理 |
 | | | 🔄 跨文件外键引用现在可以正常工作 |
-| 1.0.0 | 2026-03-14 | ⚙️ 增强 GeneratorConfig 配置选项 |
+| 1.0.0 | 2026-02-24 | ⚙️ 增强 GeneratorConfig 配置选项 |
 | | | 🔗 添加外键约束、SQL 调试等数据库连接配置 |
 | | | 🎨 添加代码格式化、文件备份功能 |
 | | | 📝 支持通过环境变量配置所有选项 |
+| 1.1.0 | 2026-02-27 | 🔄 简化配置模块，优化用户体验 |
+| | | 🗑️ 移除 `crud_output_dir`、`schemas_output_dir`、`data_layer_db_dir` 配置项 |
+| | | 📁 使用固定的输出目录结构（`crud/`、`schemas/`、`models/`） |
+| | | 🛤️ `models_path` 仅支持文件路径，不再支持模块导入路径 |
+| | | 🤖 路径冲突时自动禁用模型复制，避免两份模型文件 |
+| | | 🔧 添加 `PathResolver` 路径解析辅助类 |
+| | | ⚡ 配置验证在创建时立即执行，移除延迟验证机制 |
 
 ### 🚀 开发计划
 
@@ -1042,7 +1053,7 @@ class ConstructionQuantity(SQLModel, table=True):
 
 ---
 
-**📋 文档版本**: 1.0
-**📅 最后更新**: 2026年3月14日
+**📋 文档版本**: 2.0
+**📅 最后更新**: 2026年2月27日
 **👤 作者**: LucYang 杨艺斌
-**🔧 最新变更**: 增强 GeneratorConfig 配置选项，添加外键约束、SQL 调试等数据库连接配置，可以交付。
+**🔧 最新变更**: 简化配置模块，优化用户体验，移除冗余配置项，使用固定输出目录结构
