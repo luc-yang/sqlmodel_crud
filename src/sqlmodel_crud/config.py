@@ -13,7 +13,7 @@ SQLModel CRUD 代码生成器配置管理模块
     3. 默认配置
 
 示例:
-    >>> from sqlmodel_crud.generator.config import load_config, GeneratorConfig
+    >>> from sqlmodel_crud.config import load_config, GeneratorConfig
     >>>
     >>> # 自动加载配置
     >>> config = load_config()
@@ -25,7 +25,7 @@ SQLModel CRUD 代码生成器配置管理模块
     >>> config = GeneratorConfig(
     ...     models_path="app/models",
     ...     output_dir="app/generated",
-    ...     generators=["crud", "schemas", "api"]
+    ...     generators=["crud", "schemas"]
     ... )
 """
 
@@ -33,7 +33,7 @@ import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 # 合法的生成器类型
 VALID_GENERATORS = {"crud", "schemas", "all"}
@@ -46,7 +46,7 @@ class GeneratorConfig(BaseModel):
     支持从字典、JSON、TOML 等多种格式加载配置。
 
     属性:
-        models_path: 模型扫描路径，用于查找 SQLModel 模型类
+        models_path: 模型扫描路径，用于查找 SQLModel 模型类（仅支持文件路径）
         output_dir: 代码输出目录，生成的代码文件将保存到此目录
         generators: 生成代码类型列表，可选值：crud, schemas, all
         template_dir: 自定义模板目录，用于覆盖默认模板
@@ -68,7 +68,7 @@ class GeneratorConfig(BaseModel):
 
     models_path: str = Field(
         default="app/models",
-        description="模型扫描路径，用于查找 SQLModel 模型类",
+        description="模型扫描路径，用于查找 SQLModel 模型类（仅支持文件路径，如 app/models）",
     )
     output_dir: str = Field(
         default="app/generated",
@@ -101,14 +101,6 @@ class GeneratorConfig(BaseModel):
     schema_response_suffix: str = Field(
         default="Response",
         description="Schema 响应类后缀",
-    )
-    crud_output_dir: str = Field(
-        default="crud",
-        description="CRUD 代码输出子目录",
-    )
-    schemas_output_dir: str = Field(
-        default="schemas",
-        description="Schemas 代码输出子目录",
     )
     use_async: bool = Field(
         default=True,
@@ -145,10 +137,6 @@ class GeneratorConfig(BaseModel):
     data_layer_db_name: str = Field(
         default="app.db",
         description="数据层数据库文件名",
-    )
-    data_layer_db_dir: str = Field(
-        default="AppData",
-        description="数据层数据库目录",
     )
 
     # 数据库连接配置
@@ -227,12 +215,6 @@ class GeneratorConfig(BaseModel):
 
         Raises:
             ValueError: 当包含非法的生成器类型时抛出
-
-        示例:
-            >>> GeneratorConfig.validate_generators(["crud", "schemas"])
-            ['crud', 'schemas']
-            >>> GeneratorConfig.validate_generators(["all"])
-            ['crud', 'schemas', 'api']
         """
         if not v:
             return ["crud", "schemas"]
@@ -245,7 +227,7 @@ class GeneratorConfig(BaseModel):
         invalid = set(v) - VALID_GENERATORS
         if invalid:
             raise ValueError(
-                f"非法的生成器类型: {invalid}. " f"允许的值: {VALID_GENERATORS}"
+                f"非法的生成器类型: {invalid}. 允许的值: {VALID_GENERATORS}"
             )
 
         return v
@@ -255,8 +237,8 @@ class GeneratorConfig(BaseModel):
     def validate_models_path(cls, v: str) -> str:
         """验证模型路径
 
-        检查模型路径是否存在。路径可以是相对路径或绝对路径。
-        注意：此验证在配置加载时执行，路径可能相对于当前工作目录。
+        检查模型路径是否为有效的文件路径（不支持模块导入路径）。
+        路径可以是相对路径或绝对路径。
 
         Args:
             v: 模型路径字符串
@@ -265,14 +247,54 @@ class GeneratorConfig(BaseModel):
             验证后的模型路径
 
         Raises:
-            ValueError: 当路径不存在时抛出
+            ValueError: 当路径格式无效或不存在时抛出
         """
-        # 在验证上下文中检查 info 对象以确定是否为严格验证模式
-        # 默认配置创建时会跳过此验证
+        # 检查是否为模块导入路径格式（包含点但不是以点开头）
+        if "." in v and not v.startswith("."):
+            # 检查是否看起来像模块路径（如 app.models）
+            # 如果路径中包含点且没有斜杠或反斜杠，认为是模块路径
+            if "/" not in v and "\\" not in v:
+                raise ValueError(
+                    f"模型路径不能使用模块导入格式: {v}\n"
+                    f"请使用文件路径格式，例如: {v.replace('.', '/')}"
+                )
+
         path = Path(v)
-        # 只在路径实际存在时验证，否则延迟到 validate_all 方法
-        if path.exists() and not path.is_dir():
+
+        # 验证路径存在且为目录
+        if not path.exists():
+            raise ValueError(f"模型路径不存在: {v}")
+
+        if not path.is_dir():
             raise ValueError(f"模型路径必须是目录: {v}")
+
+        return v
+
+    @field_validator("output_dir")
+    @classmethod
+    def validate_output_dir(cls, v: str) -> str:
+        """验证输出目录
+
+        检查输出目录是否有效。如果目录不存在，会尝试创建。
+
+        Args:
+            v: 输出目录字符串
+
+        Returns:
+            验证后的输出目录
+
+        Raises:
+            ValueError: 当路径无效时抛出
+        """
+        path = Path(v)
+
+        # 如果路径已存在但不是目录，报错
+        if path.exists() and not path.is_dir():
+            raise ValueError(f"输出路径必须是目录: {v}")
+
+        # 确保目录存在
+        path.mkdir(parents=True, exist_ok=True)
+
         return v
 
     @field_validator("template_dir")
@@ -295,87 +317,104 @@ class GeneratorConfig(BaseModel):
             return v
 
         path = Path(v)
-        # 只在路径实际存在时验证类型，否则延迟到 validate_all 方法
-        if path.exists() and not path.is_dir():
+        if not path.exists():
+            raise ValueError(f"模板目录不存在: {v}")
+        if not path.is_dir():
             raise ValueError(f"模板路径必须是目录: {v}")
+
         return v
 
-    def validate_all(self) -> None:
-        """执行完整的配置验证
+    @model_validator(mode="after")
+    def validate_path_conflict(self) -> "GeneratorConfig":
+        """验证模型路径和输出目录是否存在冲突
 
-        验证所有配置项的合法性，包括：
-        - 模型路径存在且为目录
-        - 生成器类型合法
-        - 模板目录如果存在则有效
+        如果模型路径位于输出目录内，会自动禁用模型复制功能，
+        以避免出现两份模型文件的问题。
 
-        Raises:
-            ValueError: 当任何配置项验证失败时抛出
+        Returns:
+            GeneratorConfig 实例
         """
-        # 验证模型路径
-        models_path = Path(self.models_path)
-        if not models_path.exists():
-            raise ValueError(f"模型路径不存在: {self.models_path}")
-        if not models_path.is_dir():
-            raise ValueError(f"模型路径必须是目录: {self.models_path}")
+        models_path = Path(self.models_path).resolve()
+        output_dir = Path(self.output_dir).resolve()
 
-        # 验证生成器类型
-        if self.generators:
-            invalid = set(self.generators) - VALID_GENERATORS
-            if invalid:
-                raise ValueError(
-                    f"非法的生成器类型: {invalid}. " f"允许的值: {VALID_GENERATORS}"
-                )
+        try:
+            # 检查 models_path 是否是 output_dir 的子目录
+            models_path.relative_to(output_dir)
+            # 路径冲突时，自动禁用模型复制
+            if self.generate_model_copy:
+                self.generate_model_copy = False
+        except ValueError:
+            # relative_to 抛出 ValueError 表示不是子目录，这是正常情况
+            pass
 
-        # 验证模板目录
-        if self.template_dir:
-            template_path = Path(self.template_dir)
-            if not template_path.exists():
-                raise ValueError(f"模板目录不存在: {self.template_dir}")
-            if not template_path.is_dir():
-                raise ValueError(f"模板路径必须是目录: {self.template_dir}")
+        return self
 
 
-# 默认配置实例
-DEFAULT_CONFIG = GeneratorConfig(
-    models_path="app/models",
-    output_dir="app/generated",
-    generators=["crud", "schemas"],
-    template_dir=None,
-    crud_suffix="CRUD",
-    schema_suffix="Schema",
-    schema_create_suffix="Create",
-    schema_update_suffix="Update",
-    schema_response_suffix="Response",
-    crud_output_dir="crud",
-    schemas_output_dir="schemas",
-    use_async=True,
-    include_docstrings=True,
-    pagination_default_size=100,
-    pagination_max_size=1000,
-    type_mapping={},
-    exclude_models=[],
-    snapshot_file=".sqlmodel-crud-snapshot.json",
-    generate_data_layer=True,
-    data_layer_db_name="app.db",
-    data_layer_db_dir="AppData",
+# 默认配置字典（用于创建配置时的默认值）
+DEFAULT_CONFIG_DICT = {
+    "models_path": "app/models",
+    "output_dir": "app/generated",
+    "generators": ["crud", "schemas"],
+    "template_dir": None,
+    "crud_suffix": "CRUD",
+    "schema_suffix": "Schema",
+    "schema_create_suffix": "Create",
+    "schema_update_suffix": "Update",
+    "schema_response_suffix": "Response",
+    "use_async": True,
+    "include_docstrings": True,
+    "pagination_default_size": 100,
+    "pagination_max_size": 1000,
+    "type_mapping": {},
+    "exclude_models": [],
+    "snapshot_file": ".sqlmodel-crud-snapshot.json",
+    "generate_data_layer": True,
+    "data_layer_db_name": "app.db",
     # 数据库连接配置
-    enable_foreign_keys=True,
-    echo_sql=False,
-    pool_size=5,
-    max_overflow=10,
+    "enable_foreign_keys": True,
+    "echo_sql": False,
+    "pool_size": 5,
+    "max_overflow": 10,
     # 代码生成控制
-    generate_model_copy=True,
-    soft_delete_field="is_deleted",
-    soft_delete_default=False,
-    timestamp_fields=["created_at", "updated_at"],
+    "generate_model_copy": True,
+    "soft_delete_field": "is_deleted",
+    "soft_delete_default": False,
+    "timestamp_fields": ["created_at", "updated_at"],
     # 代码风格配置
-    format_code=False,
-    line_length=88,
-    include_type_hints=True,
+    "format_code": False,
+    "line_length": 88,
+    "include_type_hints": True,
     # 安全备份配置
-    backup_before_generate=False,
-    backup_suffix=".bak",
-)
+    "backup_before_generate": False,
+    "backup_suffix": ".bak",
+}
+
+
+def get_default_config() -> GeneratorConfig:
+    """获取默认配置实例
+
+    延迟创建配置实例，避免在模块导入时验证路径。
+    如果默认路径不存在，会使用当前目录作为回退。
+
+    Returns:
+        GeneratorConfig 实例
+    """
+    import os
+
+    config_dict = DEFAULT_CONFIG_DICT.copy()
+
+    # 检查默认路径是否存在，如果不存在则使用当前目录
+    if not os.path.exists(config_dict["models_path"]):
+        config_dict["models_path"] = "."
+
+    # 确保输出目录存在
+    os.makedirs(config_dict["output_dir"], exist_ok=True)
+
+    return GeneratorConfig(**config_dict)
+
+
+# 默认配置实例（延迟创建）
+DEFAULT_CONFIG = None  # 使用 get_default_config() 获取
 
 
 def _load_toml_file(path: str) -> Optional[Dict]:
@@ -567,7 +606,6 @@ def _load_from_env() -> Dict[str, Any]:
         "SNAPSHOT_FILE": "snapshot_file",
         "GENERATE_DATA_LAYER": "generate_data_layer",
         "DATA_LAYER_DB_NAME": "data_layer_db_name",
-        "DATA_LAYER_DB_DIR": "data_layer_db_dir",
         # 新增配置项
         "ENABLE_FOREIGN_KEYS": "enable_foreign_keys",
         "ECHO_SQL": "echo_sql",
@@ -626,7 +664,6 @@ def _load_from_env() -> Dict[str, Any]:
 
 def load_config(
     config_path: Optional[str] = None,
-    skip_validation: bool = False,
 ) -> GeneratorConfig:
     """综合加载配置
 
@@ -639,7 +676,6 @@ def load_config(
 
     Args:
         config_path: 可选的自定义配置文件路径
-        skip_validation: 是否跳过路径验证，默认为 False
 
     Returns:
         GeneratorConfig 实例
@@ -653,12 +689,9 @@ def load_config(
         >>>
         >>> # 从指定文件加载
         >>> config = load_config("custom-config.toml")
-        >>>
-        >>> # 跳过验证（用于路径还不存在的情况）
-        >>> config = load_config(skip_validation=True)
     """
-    # 从默认配置开始
-    config_dict = DEFAULT_CONFIG.model_dump()
+    # 从默认配置字典开始
+    config_dict = DEFAULT_CONFIG_DICT.copy()
 
     # 1. 尝试从配置文件加载（优先级：指定文件 > pyproject.toml > .sqlmodel-crud.toml）
     file_config = None
@@ -687,11 +720,7 @@ def load_config(
     env_config = _load_from_env()
     config_dict.update(env_config)
 
-    # 创建配置对象
-    if skip_validation:
-        # 跳过验证，直接创建（使用 model_construct 完全跳过验证）
-        config = GeneratorConfig.model_construct(**config_dict)
-    else:
-        config = GeneratorConfig(**config_dict)
+    # 创建配置对象（Pydantic 会自动验证）
+    config = GeneratorConfig(**config_dict)
 
     return config

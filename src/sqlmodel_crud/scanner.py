@@ -100,7 +100,9 @@ class FieldMeta:
         Returns:
             如果字段不可为空且没有默认值，返回 True
         """
-        return not self.nullable and self.default is None and self.default_factory is None
+        return (
+            not self.nullable and self.default is None and self.default_factory is None
+        )
 
     def is_auto_increment(self) -> bool:
         """
@@ -378,134 +380,128 @@ class ModelScanner:
 
         return model_meta
 
-    def scan_module(self, module_path: str) -> List[ModelMeta]:
+    def scan_directory(self, directory_path: str) -> List[ModelMeta]:
         """
-        扫描模块路径中的所有 SQLModel 类。
+        扫描目录中的所有 SQLModel 类。
 
-        支持扫描 Python 模块（如 "app.models"）或文件路径（如 "app/models.py"）。
+        仅支持文件系统目录路径，不再支持模块导入路径。
 
         Args:
-            module_path: 模块导入路径或文件路径
+            directory_path: 目录路径
 
         Returns:
             模型元数据列表
         """
+        path = Path(directory_path).resolve()
+
+        if not path.exists():
+            raise ValueError(f"目录不存在: {directory_path}")
+
+        if not path.is_dir():
+            raise ValueError(f"路径必须是目录: {directory_path}")
+
         models = []
 
-        # 判断是文件路径还是模块路径
-        path = Path(module_path)
-
-        if path.exists():
-            # 是文件路径
-            if path.is_file() and path.suffix == ".py":
-                # 单个 Python 文件
-                models.extend(self._scan_file(path))
-            elif path.is_dir():
-                # 目录，优先尝试作为 Python 包导入
-                if (path / "__init__.py").exists():
-                    # 尝试将目录作为包导入
-                    module_name, root_path = self._path_to_module_name(path)
-                    if module_name and root_path:
-                        try:
-                            # 将包根目录添加到 sys.path
-                            root_dir = str(root_path)
-                            added_to_path = False
-                            if root_dir not in sys.path:
-                                sys.path.insert(0, root_dir)
-                                added_to_path = True
-
-                            module = importlib.import_module(module_name)
-                            models.extend(self._scan_module_object(module))
-
-                            # 清理 sys.path
-                            if added_to_path and root_dir in sys.path:
-                                sys.path.remove(root_dir)
-                        except ImportError as e:
-                            # 提供友好的错误提示
-                            error_msg = str(e)
-                            print(f"[提示] 导入包失败: {error_msg}")
-                            print(f"[提示] 尝试回退到逐个文件扫描...")
-
-                            # 检查是否是常见的 __init__.py 问题
-                            if "No module named" in error_msg:
-                                init_file = path / "__init__.py"
-                                if init_file.exists():
-                                    print(f"[提示] 检测到 {init_file} 存在但导入失败。")
-                                    print(f"[提示] 可能的原因:")
-                                    print(
-                                        f"  1. {init_file} 中引用了不存在的模块（如 repositories）"
-                                    )
-                                    print(f"  2. {init_file} 中的相对导入路径不正确")
-                                    print(f"  3. 父目录缺少 __init__.py 导致包结构不完整")
-                                    print(
-                                        f"[建议] 如果不需要包级别的导入，可以临时删除或重命名 {init_file}"
-                                    )
-
-                            # 如果导入失败，回退到逐个文件扫描
-                            self._scan_directory_files(path, models)
-                    else:
-                        self._scan_directory_files(path, models)
-                else:
-                    # 没有 __init__.py，逐个扫描文件
-                    self._scan_directory_files(path, models)
-        else:
-            # 尝试作为模块导入路径
+        # 如果目录包含 __init__.py，尝试作为包导入
+        if (path / "__init__.py").exists():
             try:
-                module = importlib.import_module(module_path)
-                models.extend(self._scan_module_object(module))
+                package_models = self._scan_as_package(path)
+                if package_models:
+                    return package_models
             except ImportError:
-                # 尝试作为相对路径
-                abs_path = Path.cwd() / module_path
-                if abs_path.exists():
-                    return self.scan_module(str(abs_path))
-                raise ValueError(f"无法找到模块或路径: {module_path}")
+                # 包导入失败，回退到逐个文件扫描
+                print(f"[提示] 包导入失败，回退到逐个文件扫描: {path}")
+
+        # 逐个文件扫描
+        self._scan_directory_files(path, models)
 
         return models
 
-    def _path_to_module_name(self, path: Path) -> tuple[Optional[str], Optional[Path]]:
+    def _scan_as_package(self, path: Path) -> List[ModelMeta]:
         """
-        将路径转换为模块名称和包根目录。
+        将目录作为 Python 包扫描。
 
         Args:
-            path: 文件或目录路径
+            path: 包目录路径
 
         Returns:
-            (模块名称, 包根目录)，如果无法转换则返回 (None, None)
+            模型元数据列表
+
+        Raises:
+            ImportError: 当包导入失败时抛出
         """
-        path = path.resolve()
-        parts = list(path.parts)
+        # 查找包根目录
+        package_root = self._find_package_root(path)
+        if not package_root:
+            raise ImportError(f"无法确定包根目录: {path}")
 
-        # 从路径中查找包根（包含 __init__.py 的最顶层目录）
-        # 从目标路径向上查找，收集所有连续的包含 __init__.py 的目录
-        package_parts = []
-        root_index = -1
+        # 计算模块名
+        module_name = self._calculate_module_name(path, package_root)
+        if not module_name:
+            raise ImportError(f"无法计算模块名: {path}")
 
-        for i in range(len(parts) - 1, 0, -1):
-            test_path = Path(*parts[:i])
-            if (test_path / "__init__.py").exists():
-                package_parts.insert(0, parts[i - 1])
+        # 将包根目录添加到 sys.path
+        root_dir = str(package_root)
+        added_to_path = False
+        if root_dir not in sys.path:
+            sys.path.insert(0, root_dir)
+            added_to_path = True
+
+        try:
+            # 导入包
+            module = __import__(module_name, fromlist=["*"])
+            return self._scan_module_object(module)
+        finally:
+            # 清理 sys.path
+            if added_to_path and root_dir in sys.path:
+                sys.path.remove(root_dir)
+
+    def _find_package_root(self, path: Path) -> Optional[Path]:
+        """
+        查找包根目录。
+
+        从给定路径向上查找，找到包含 __init__.py 的最顶层目录。
+
+        Args:
+            path: 起始路径
+
+        Returns:
+            包根目录，如果找不到返回 None
+        """
+        current = path
+        root = current
+
+        # 向上查找
+        while current.parent != current:
+            if (current.parent / "__init__.py").exists():
+                root = current.parent
+                current = current.parent
             else:
-                # 找到了不包含 __init__.py 的目录，这就是包根的上级
-                if package_parts:
-                    root_index = i
                 break
 
-        if package_parts and root_index > 0:
-            # 找到了包结构，构建模块名
-            # 从包根到目标路径的相对路径
-            root_path = Path(*parts[:root_index])
-            rel_parts = path.relative_to(root_path).parts
-            module_name = ".".join(list(rel_parts))
-            return module_name, root_path
+        return (
+            root
+            if root != path
+            else path.parent if (path / "__init__.py").exists() else None
+        )
 
-        # 如果没有找到包含 __init__.py 的父目录，但目标本身有 __init__.py
-        if (path / "__init__.py").exists() and len(parts) > 1:
-            # 父目录就是包根
-            root_path = path.parent
-            module_name = path.name
-            return module_name, root_path
+    def _calculate_module_name(self, path: Path, root: Path) -> Optional[str]:
+        """
+        计算模块名。
 
-        return None, None
+        Args:
+            path: 目标路径
+            root: 包根目录
+
+        Returns:
+            模块名，如果无法计算返回 None
+        """
+        try:
+            rel_path = path.relative_to(root)
+            parts = list(rel_path.parts)
+            return ".".join(parts) if parts else None
+        except ValueError:
+            return None
 
     def _scan_directory_files(self, path: Path, models: List[ModelMeta]) -> None:
         """
@@ -527,7 +523,12 @@ class ModelScanner:
             if self._is_in_excluded_dir(py_file, exclude_dirs):
                 continue
 
-            models.extend(self._scan_file(py_file))
+            try:
+                file_models = self._scan_file(py_file)
+                models.extend(file_models)
+            except ValidationError:
+                # 继续扫描其他文件
+                continue
 
     def _get_exclude_dirs(self) -> List[str]:
         """
@@ -603,7 +604,9 @@ class ModelScanner:
         if package_root and package_parts:
             # 计算从包根到文件的相对路径
             rel_parts = file_path.relative_to(package_root).parts
-            module_name = ".".join(package_parts[:-1] + list(rel_parts[:-1]) + [file_path.stem])
+            module_name = ".".join(
+                package_parts[:-1] + list(rel_parts[:-1]) + [file_path.stem]
+            )
             package_name = ".".join(package_parts[:-1] + list(rel_parts[:-1]))
         else:
             module_name = file_path.stem
@@ -640,7 +643,11 @@ class ModelScanner:
                 if name.startswith("_"):
                     continue
                 try:
-                    if isinstance(obj, type) and issubclass(obj, SQLModel) and obj is not SQLModel:
+                    if (
+                        isinstance(obj, type)
+                        and issubclass(obj, SQLModel)
+                        and obj is not SQLModel
+                    ):
                         model_meta = self.scan_model(obj)
                         models.append(model_meta)
                 except (TypeError, AttributeError):
@@ -655,11 +662,17 @@ class ModelScanner:
                 print(f"[提示] 可能的原因:")
                 print(f"  1. 该模型已在包导入时被加载，又被逐个文件扫描重复加载")
                 print(f"  2. 多个模型文件定义了同名的表")
-                print(f"[建议] 如果 {file_path.parent / '__init__.py'} 存在问题，可以尝试:")
+                print(
+                    f"[建议] 如果 {file_path.parent / '__init__.py'} 存在问题，可以尝试:"
+                )
                 print(f"  - 修复 {file_path.parent / '__init__.py'} 中的导入错误")
-                print(f"  - 或临时删除/重命名 {file_path.parent / '__init__.py'} 以跳过包导入")
+                print(
+                    f"  - 或临时删除/重命名 {file_path.parent / '__init__.py'} 以跳过包导入"
+                )
 
-            raise ValidationError(f"扫描文件失败: {e}", context={"file": str(file_path)}) from e
+            raise ValidationError(
+                f"扫描文件失败: {e}", context={"file": str(file_path)}
+            ) from e
         finally:
             # 清理 sys.path
             if added_to_path and package_root and str(package_root) in sys.path:
@@ -697,11 +710,15 @@ class ModelScanner:
                     models.append(model_meta)
                 except Exception as e:
                     # 扫描失败时抛出异常
-                    raise ValidationError(f"扫描模型失败: {e}", context={"model": name}) from e
+                    raise ValidationError(
+                        f"扫描模型失败: {e}", context={"model": name}
+                    ) from e
 
         return models
 
-    def _extract_field_info(self, model_class: Type[SQLModel], field_name: str) -> FieldMeta:
+    def _extract_field_info(
+        self, model_class: Type[SQLModel], field_name: str
+    ) -> FieldMeta:
         """
         从模型类中提取字段信息。
 
@@ -716,13 +733,21 @@ class ModelScanner:
 
         # 获取字段的 SQLModel 字段信息
         field_info = None
-        if hasattr(model_class, "model_fields") and field_name in model_class.model_fields:
+        if (
+            hasattr(model_class, "model_fields")
+            and field_name in model_class.model_fields
+        ):
             field_info = model_class.model_fields[field_name]
-        elif hasattr(model_class, "__fields__") and field_name in model_class.__fields__:
+        elif (
+            hasattr(model_class, "__fields__") and field_name in model_class.__fields__
+        ):
             field_info = model_class.__fields__[field_name]
 
         # 获取 Python 类型注解
-        if hasattr(model_class, "__annotations__") and field_name in model_class.__annotations__:
+        if (
+            hasattr(model_class, "__annotations__")
+            and field_name in model_class.__annotations__
+        ):
             field_meta.python_type = model_class.__annotations__[field_name]
             field_meta.field_type = self._determine_field_type(field_meta.python_type)
 
@@ -735,7 +760,10 @@ class ModelScanner:
                     field_meta.default = default
 
             # 获取默认值工厂
-            if hasattr(field_info, "default_factory") and field_info.default_factory is not None:
+            if (
+                hasattr(field_info, "default_factory")
+                and field_info.default_factory is not None
+            ):
                 field_meta.default_factory = field_info.default_factory
 
             # 获取字段描述
@@ -743,7 +771,10 @@ class ModelScanner:
                 field_meta.description = field_info.description
 
             # 获取验证约束
-            if hasattr(field_info, "json_schema_extra") and field_info.json_schema_extra:
+            if (
+                hasattr(field_info, "json_schema_extra")
+                and field_info.json_schema_extra
+            ):
                 extra = field_info.json_schema_extra
                 if isinstance(extra, dict):
                     field_meta.ge = extra.get("ge")
@@ -757,7 +788,9 @@ class ModelScanner:
             if hasattr(field_info, "foreign_key"):
                 fk_value = field_info.foreign_key
                 # 只保存有效的外键值（非 None 且非 PydanticUndefined）
-                if fk_value is not None and not str(fk_value).startswith("PydanticUndefined"):
+                if fk_value is not None and not str(fk_value).startswith(
+                    "PydanticUndefined"
+                ):
                     field_meta.foreign_key = fk_value
 
             # 获取主键信息
@@ -917,7 +950,9 @@ class ModelScanner:
 
         return FieldType.UNKNOWN
 
-    def get_cached_model(self, name: str, module: Optional[str] = None) -> Optional[ModelMeta]:
+    def get_cached_model(
+        self, name: str, module: Optional[str] = None
+    ) -> Optional[ModelMeta]:
         """
         从缓存中获取已扫描的模型。
 

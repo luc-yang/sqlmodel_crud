@@ -75,12 +75,14 @@ from .generator import CodeGenerator, GeneratedFile, generate
 from .detector import ChangeDetector, ModelChange
 from .config import (
     GeneratorConfig,
-    DEFAULT_CONFIG,
+    DEFAULT_CONFIG_DICT,
+    get_default_config,
     load_config,
     load_config_from_file,
     load_config_from_pyproject,
     VALID_GENERATORS,
 )
+from .path_resolver import PathResolver
 
 __version__ = "1.0.0"
 __author__ = "LucYang 杨艺斌"
@@ -119,9 +121,12 @@ __all__ = [
     "ModelChange",
     # 代码生成器 - 配置
     "GeneratorConfig",
-    "DEFAULT_CONFIG",
+    "DEFAULT_CONFIG_DICT",
+    "get_default_config",
     "load_config",
     "load_config_from_file",
     "load_config_from_pyproject",
     "VALID_GENERATORS",
+    # 代码生成器 - 路径解析
+    "PathResolver",
 ]

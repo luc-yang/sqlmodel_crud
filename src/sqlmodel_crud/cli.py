@@ -275,8 +275,6 @@ schema_suffix = "Schema"
 schema_create_suffix = "Create"
 schema_update_suffix = "Update"
 schema_response_suffix = "Response"
-crud_output_dir = "crud"
-schemas_output_dir = "schemas"
 use_async = true
 include_docstrings = true
 pagination_default_size = 100
@@ -285,9 +283,9 @@ exclude_models = []
 snapshot_file = ".sqlmodel-crud-snapshot.json"
 
 # 数据层基础设施文件生成配置
+# 数据库文件将直接放在 output_dir 下
 generate_data_layer = true
 data_layer_db_name = "app.db"
-data_layer_db_dir = "AppData"
 """
     else:
         content = f"""[sqlmodel-crud]
@@ -296,9 +294,9 @@ output_dir = "{output_dir}"
 generators = ["crud", "schemas"]
 
 # 数据层基础设施文件生成配置（开箱即用）
+# 数据库文件将直接放在 output_dir 下
 generate_data_layer = true
 data_layer_db_name = "app.db"
-data_layer_db_dir = "AppData"
 """
 
     config_path.write_text(content, encoding="utf-8")

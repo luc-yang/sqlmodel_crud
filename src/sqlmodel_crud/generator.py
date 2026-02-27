@@ -246,10 +246,10 @@ class CodeGenerator:
         """
         try:
             # 准备模板上下文
+            # 数据库文件直接放在 output_dir 下，不再使用 data_layer_db_dir
             context = {
                 "config": self.config,
                 "db_name": self.config.data_layer_db_name,
-                "db_dir": self.config.data_layer_db_dir,
             }
 
             # 渲染模板
@@ -535,6 +535,10 @@ class CodeGenerator:
         """
         获取输出文件路径。
 
+        使用固定的子目录结构：
+        - crud/ 用于 CRUD 代码
+        - schemas/ 用于 Schema 代码
+
         Args:
             generator_type: 生成器类型（crud/schemas）
             model_name: 模型名称
@@ -544,11 +548,11 @@ class CodeGenerator:
         """
         snake_name = self._to_snake_case(model_name)
 
-        # 根据生成器类型确定子目录
+        # 使用固定的子目录名称
         if generator_type == "crud":
-            subdir = getattr(self.config, "crud_output_dir", "crud")
+            subdir = "crud"
         elif generator_type == "schemas":
-            subdir = getattr(self.config, "schemas_output_dir", "schemas")
+            subdir = "schemas"
         else:
             subdir = generator_type
 
@@ -870,7 +874,7 @@ def generate(
 
     # 扫描模型
     scanner = ModelScanner(config)
-    models = scanner.scan_module(models_path)
+    models = scanner.scan_directory(models_path)
 
     if not models:
         return []
