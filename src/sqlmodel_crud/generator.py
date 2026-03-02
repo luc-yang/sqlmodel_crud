@@ -246,10 +246,11 @@ class CodeGenerator:
         """
         try:
             # 准备模板上下文
-            # 数据库文件直接放在 output_dir 下，不再使用 data_layer_db_dir
+            # db_dir 默认为 None，表示使用模块所在目录
             context = {
                 "config": self.config,
                 "db_name": self.config.data_layer_db_name,
+                "db_dir": None,
             }
 
             # 渲染模板

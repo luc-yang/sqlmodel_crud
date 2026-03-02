@@ -11,48 +11,58 @@
 
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 
 class DatabaseConfig:
     """数据库配置类
 
     管理数据库文件路径和连接URL的生成。
-    数据库文件直接放在模块所在目录下。
+    支持自定义数据库目录，默认为模块所在目录。
 
     Attributes:
         db_name: 数据库文件名
-        db_path: 数据库完整路径
-        database_url: 数据库连接URL
+        db_dir: 数据库目录路径
 
     示例:
         >>> config = DatabaseConfig()
         >>> print(config.database_url)
         'sqlite:///path/to/database.db'
+        >>> config = DatabaseConfig(db_dir="/custom/path")
+        >>> print(config.db_dir)
+        PosixPath('/custom/path')
     """
 
     def __init__(
         self,
         db_name: Optional[str] = None,
+        db_dir: Optional[Union[str, Path]] = None,
     ):
         """初始化数据库配置
 
         Args:
             db_name: 数据库文件名，默认为 {{ db_name }}
+            db_dir: 数据库文件存放目录，默认为 None（使用模块所在目录）
         """
         self._db_name = db_name if db_name is not None and db_name != "" else "{{ db_name }}"
+        self._db_dir = Path(db_dir) if db_dir is not None and db_dir != "" else None
 
     @property
     def db_dir(self) -> Path:
         """获取数据库目录路径
 
-        数据库文件直接放在本模块所在目录下。
+        如果用户指定了目录，则返回指定目录；
+        否则返回模块所在目录。
 
         Returns:
             数据库目录的 Path 对象
         """
-        # 数据库文件放在本模块所在目录
-        db_dir = Path(__file__).parent
+        # 如果用户指定了目录，使用指定目录
+        if self._db_dir is not None:
+            db_dir = self._db_dir
+        else:
+            # 默认使用模块所在目录
+            db_dir = Path(__file__).parent
 
         # 确保目录存在
         db_dir.mkdir(parents=True, exist_ok=True)
