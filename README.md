@@ -261,6 +261,11 @@ uv run black sqlmodel_crud/ tests/
 
 ## 更新日志
 
+### v1.1.1 (2026-03-01)
+
+**修复**:
+- 🐛 修复 CLI 代码生成命令中的方法调用错误 (`scan_module` → `scan_directory`)
+
 ### v1.1.0 (2026-02-27)
 
 **重大变更**：

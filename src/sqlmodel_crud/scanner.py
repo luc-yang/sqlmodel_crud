@@ -402,8 +402,16 @@ class ModelScanner:
 
         models = []
 
+        # 检查是否存在 __init__.py 文件
+        init_file = path / "__init__.py"
+        if not init_file.exists():
+            # 创建 __init__.py 文件
+            init_file.write_text('"""SQLModel models module."""\n', encoding="utf-8")
+            print(f"[提示] 已自动创建 {init_file}")
+            print(f"[提示] 如需导出模型，请在 {init_file} 中添加导入语句")
+
         # 如果目录包含 __init__.py，尝试作为包导入
-        if (path / "__init__.py").exists():
+        if init_file.exists():
             try:
                 package_models = self._scan_as_package(path)
                 if package_models:

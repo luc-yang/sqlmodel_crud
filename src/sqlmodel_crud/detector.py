@@ -120,11 +120,12 @@ class ChangeDetector:
                 with open(snapshot_path, "r", encoding="utf-8") as f:
                     self.snapshot = json.load(f)
             except (json.JSONDecodeError, IOError) as e:
-                raise DatabaseError(
-                    f"无法加载快照文件: {e}",
-                    operation="load",
-                    context={"file_path": str(snapshot_path)},
-                ) from e
+                # 快照文件损坏，自动备份并创建新的
+                backup_path = snapshot_path.with_suffix(".json.bak")
+                snapshot_path.rename(backup_path)
+                print(f"[提示] 快照文件损坏，已备份到: {backup_path}")
+                print(f"[提示] 将重新生成所有代码")
+                self.snapshot = {}
         else:
             self.snapshot = {}
         return self.snapshot

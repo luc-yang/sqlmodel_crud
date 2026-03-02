@@ -34,7 +34,7 @@ from .generator import CodeGenerator
 from .detector import ChangeDetector
 
 # 版本信息
-__version__ = "1.1.0"
+__version__ = "1.1.1"
 __author__ = "LucYang 杨艺斌"
 
 # 创建 Typer 应用
@@ -452,7 +452,7 @@ def generate(
         task = progress.add_task("扫描模型文件...", total=None)
 
         try:
-            models = scanner.scan_module(str(models_dir))
+            models = scanner.scan_directory(str(models_dir))
             progress.update(task, description=f"扫描完成，发现 {len(models)} 个模型")
         except Exception as e:
             print_error(f"扫描模型失败: {e}")
@@ -460,6 +460,8 @@ def generate(
 
     if not models:
         print_warning(f"在 {config.models_path} 中没有发现 SQLModel 模型")
+        print_info("提示: 确保模型目录包含 __init__.py 文件")
+        print_info("提示: 模型类需要继承 SQLModel 并设置 table=True")
         return
 
     print_success(f"发现 {len(models)} 个模型:")
