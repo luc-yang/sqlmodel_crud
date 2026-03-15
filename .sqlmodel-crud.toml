@@ -1,8 +1,0 @@
-[sqlmodel-crud]
-models_path = "app/data/models"
-output_dir = "app/data"
-
-# 数据层基础设施文件生成配置（开箱即用）
-# 数据库文件将直接放在 output_dir 下
-generate_data_layer = true
-data_layer_db_name = "app.db"
