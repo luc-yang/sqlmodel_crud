@@ -23,7 +23,6 @@ from sqlmodel_crud.detector import (
     DateTimeEncoder,
 )
 from sqlmodel_crud.scanner import ModelMeta, FieldMeta, FieldType
-from sqlmodel_crud.exceptions import DatabaseError
 
 
 # =============================================================================
@@ -239,14 +238,14 @@ class TestLoadSnapshot:
         assert result == {}
 
     def test_load_invalid_json(self, tmp_path):
-        """测试加载无效的 JSON"""
+        """测试加载无效 JSON 时自愈并继续"""
         snapshot_file = tmp_path / "invalid.json"
         snapshot_file.write_text("not valid json", encoding="utf-8")
+        detector = ChangeDetector(str(snapshot_file))
 
-        with pytest.raises(DatabaseError) as exc_info:
-            ChangeDetector(str(snapshot_file))
-
-        assert "无法加载快照文件" in str(exc_info.value)
+        assert detector.snapshot == {}
+        assert not snapshot_file.exists()
+        assert (tmp_path / "invalid.json.bak").exists()
 
 
 # =============================================================================

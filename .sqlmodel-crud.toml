@@ -1,7 +1,6 @@
 [sqlmodel-crud]
 models_path = "app/data/models"
 output_dir = "app/data"
-generators = ["crud", "schemas"]
 
 # 数据层基础设施文件生成配置（开箱即用）
 # 数据库文件将直接放在 output_dir 下

@@ -526,12 +526,12 @@ class TestFieldTypeDetection:
 
 
 # =============================================================================
-# Test Scan Module
+# Test Scan
 # =============================================================================
 
 
-class TestScanModule:
-    """测试扫描模块"""
+class TestScan:
+    """测试统一扫描入口。"""
 
     def test_scan_directory_with_models(self, scanner, tmp_path):
         """测试扫描包含模型的目录"""
@@ -551,7 +551,7 @@ class TestScanModule:
             encoding="utf-8",
         )
 
-        models = scanner.scan_module(str(models_dir))
+        models = scanner.scan(str(models_dir))
         assert len(models) >= 0  # 可能因导入问题而为 0
 
     def test_scan_single_file(self, scanner, tmp_path):
@@ -567,15 +567,35 @@ class TestScanModule:
             encoding="utf-8",
         )
 
-        models = scanner.scan_module(str(model_file))
+        models = scanner.scan(str(model_file))
         assert len(models) >= 0  # 可能因导入问题而为 0
 
     def test_scan_nonexistent_path(self, scanner):
         """测试扫描不存在的路径"""
         with pytest.raises(ValueError) as exc_info:
-            scanner.scan_module("/nonexistent/path")
+            scanner.scan("/nonexistent/path")
 
         assert "无法找到模块或路径" in str(exc_info.value)
+
+    def test_scan_directory_does_not_create_init_file(self, scanner, tmp_path):
+        """扫描目录不应修改用户源码。"""
+        models_dir = tmp_path / "plain_models"
+        models_dir.mkdir()
+        (models_dir / "user.py").write_text(
+            "from sqlmodel import SQLModel, Field\n"
+            "class User(SQLModel, table=True):\n"
+            "    __tablename__ = 'users'\n"
+            "    id: int = Field(primary_key=True)\n",
+            encoding="utf-8",
+        )
+
+        scanner.scan(str(models_dir))
+
+        assert not (models_dir / "__init__.py").exists()
+
+    def test_scanner_exposes_single_scan_entry(self, scanner):
+        """扫描器公开统一 scan 入口。"""
+        assert hasattr(scanner, "scan")
 
 
 # =============================================================================

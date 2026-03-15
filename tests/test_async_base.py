@@ -575,3 +575,24 @@ class TestAsyncCRUDBaseExists:
         """
         # 验证不存在的记录
         assert await async_test_user_crud.exists(async_session, 99999) is False
+
+
+class TestAsyncCRUDBaseTransactionBoundary:
+    """测试异步 CRUD 写操作的事务边界由 Session 上下文统一控制"""
+
+    async def test_async_create_rolled_back_when_session_context_errors(
+        self, async_db_manager, async_test_user_crud
+    ):
+        """同一 async session 块内抛异常时，create 不应提前提交"""
+        await async_db_manager.create_tables_async()
+
+        with pytest.raises(RuntimeError, match="trigger rollback"):
+            async with async_db_manager.get_async_session() as tx_session:
+                await async_test_user_crud.create(
+                    tx_session,
+                    {"name": "异步事务回滚用户", "email": "async-tx-rollback@test.com"},
+                )
+                raise RuntimeError("trigger rollback")
+
+        async with async_db_manager.get_async_session() as verify_session:
+            assert await async_test_user_crud.count(verify_session) == 0

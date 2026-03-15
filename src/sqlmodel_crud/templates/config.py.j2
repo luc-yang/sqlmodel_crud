@@ -91,8 +91,6 @@ class DatabaseConfig:
     def database_url(self) -> str:
         """获取数据库连接URL
 
-        生成 SQLite 数据库连接URL。
-
         Returns:
             数据库连接URL字符串
 
@@ -102,9 +100,12 @@ class DatabaseConfig:
             >>> print(url)
             'sqlite:///C:/Users/.../{{ db_name }}'
         """
-        # SQLite 需要使用绝对路径或 file:// 格式
         abs_path = self.db_path.resolve()
+{% if config.use_async %}
+        return f"sqlite+aiosqlite:///{abs_path}"
+{% else %}
         return f"sqlite:///{abs_path}"
+{% endif %}
 
     def exists(self) -> bool:
         """检查数据库文件是否存在

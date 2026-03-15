@@ -535,3 +535,22 @@ class TestCRUDBaseExists:
         """
         # 验证不存在的记录
         assert test_user_crud.exists(session, 99999) is False
+
+
+class TestCRUDBaseTransactionBoundary:
+    """测试 CRUD 写操作的事务边界由 Session 上下文统一控制"""
+
+    def test_create_rolled_back_when_session_context_errors(self, db_manager, test_user_crud):
+        """同一 session 块内抛异常时，create 不应提前提交"""
+        db_manager.create_tables()
+
+        with pytest.raises(RuntimeError, match="trigger rollback"):
+            with db_manager.get_session() as tx_session:
+                test_user_crud.create(
+                    tx_session,
+                    {"name": "事务回滚用户", "email": "tx-rollback@test.com"},
+                )
+                raise RuntimeError("trigger rollback")
+
+        with db_manager.get_session() as verify_session:
+            assert test_user_crud.count(verify_session) == 0

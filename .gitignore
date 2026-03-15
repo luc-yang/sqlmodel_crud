@@ -32,6 +32,10 @@ Thumbs.db
 .pytest_cache/
 .coverage
 htmlcov/
+coverage_html/
+
+# Example outputs
+examples/code_generation/generated/
 
 # Local data
 AppData/
@@ -42,5 +46,4 @@ data/
 *.tmp
 *.temp
 *.log
-
 

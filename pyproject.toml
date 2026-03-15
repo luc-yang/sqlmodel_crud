@@ -1,5 +1,5 @@
 [project]
-name = "sqlmodel-curd"
+name = "sqlmodel-crud"
 version = "1.1.1"
 description = "基于SQLModel的可复用CRUD模块"
 readme = "README.md"
@@ -34,11 +34,11 @@ dependencies = [
 sqlmodel-crud = "sqlmodel_crud.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/yourusername/sqlmodel-curd"
-Documentation = "https://github.com/yourusername/sqlmodel-curd#readme"
-Repository = "https://github.com/yourusername/sqlmodel-curd"
-Issues = "https://github.com/yourusername/sqlmodel-curd/issues"
-Changelog = "https://github.com/yourusername/sqlmodel-curd/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/yourusername/sqlmodel-crud"
+Documentation = "https://github.com/yourusername/sqlmodel-crud#readme"
+Repository = "https://github.com/yourusername/sqlmodel-crud"
+Issues = "https://github.com/yourusername/sqlmodel-crud/issues"
+Changelog = "https://github.com/yourusername/sqlmodel-crud/blob/main/CHANGELOG.md"
 
 [[tool.uv.index]]
 url = "https://pypi.tuna.tsinghua.edu.cn/simple"

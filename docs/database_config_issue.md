@@ -189,7 +189,7 @@ class DatabaseInitializer:
         SQLModel.metadata.create_all(bind=engine)
 ```
 
-#### 3. 可选：移除模块级 db 实例
+#### 3. 移除模块级 db 实例
 
 ```python
 # database.py
@@ -197,7 +197,6 @@ class DatabaseInitializer:
 # 删除模块级实例，避免导入时自动创建
 # db = DatabaseManager()  # 删除这行
 
-# 如果需要保持向后兼容，可以保留但注释掉
 # db = None  # 由用户在应用启动时创建
 ```
 
@@ -253,38 +252,6 @@ if __name__ == "__main__":
 | 配置更新 | 不支持 | 支持 `set_config` 方法 |
 | 导入顺序要求 | 必须在其他导入前设置配置 | 导入顺序无关 |
 | 代码组织 | 需要在模块级别跑代码 | 所有配置在 `main()` 中完成 |
-
-## 向后兼容说明
-
-### 对于现有用户
-
-如果用户没有自定义数据库配置，使用默认配置，无需修改代码。
-
-### 对于需要自定义配置的用户
-
-**旧代码**（需要特定导入顺序）：
-```python
-# 必须在其他导入前设置
-db_config = DatabaseConfig(db_name="myapp.db")
-init_database(db_config)
-
-from app.view.main_window import MainWindow  # 导入必须在设置之后
-```
-
-**新代码**（导入顺序无关）：
-```python
-# 导入顺序不再重要
-from app.view.main_window import MainWindow
-from app.data.database import DatabaseManager
-
-def main():
-    # 在应用启动时设置配置
-    db = DatabaseManager()
-    db.set_config(DatabaseConfig(db_name="myapp.db"))
-    
-    # 正常使用
-    window = MainWindow()
-```
 
 ## 测试验证
 
